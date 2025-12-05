@@ -175,7 +175,7 @@ const Dashboard = () => {
 
       setLoading(true);
       const response = await axios.put(
-        `http://localhost:4000/api/v1/tasks/${currentTask._id}`,
+        `${import.meta.env.VITE_API_BASE_URL}/tasks/${currentTask._id}`,
         formData,
         {
           withCredentials: true,
@@ -207,7 +207,7 @@ const Dashboard = () => {
     try {
       setLoading(true);
       const response = await axios.delete(
-        `http://localhost:4000/api/v1/tasks/${taskToDelete}`,
+        `${import.meta.env.VITE_API_BASE_URL}/tasks/${taskToDelete}`,
         {
           withCredentials: true,
           headers: { 'Content-Type': 'application/json' }
