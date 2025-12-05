@@ -1,7 +1,7 @@
 import { User } from "../models/user.model.js";
 import APIError from "../utils/API_Error.js";
 import {asyncHandler} from "../utils/asyncHandler.js";
-import { APIResponse } from "../utils/API_response.js";
+import { APIResponse } from "../utils/API_Response.js";
 import jwt from "jsonwebtoken";
 
 const generateAccessandRefrsehToken = async (userID) => {
