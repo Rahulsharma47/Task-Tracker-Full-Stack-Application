@@ -116,7 +116,29 @@ export const authService = {
 
 // ============ TASK SERVICES ============
 
+// ============ TASK SERVICES ============
+
 export const taskService = {
+  // Helper function to get auth config
+  _getAuthConfig: () => {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      try {
+        const userData = JSON.parse(userStr);
+        if (userData.accessToken) {
+          return {
+            headers: {
+              'Authorization': `Bearer ${userData.accessToken}`
+            }
+          };
+        }
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+      }
+    }
+    return {};
+  },
+
   // Get all tasks for current user
   getAllTasks: async (filters = {}) => {
     const queryParams = new URLSearchParams();
@@ -134,31 +156,35 @@ export const taskService = {
     const queryString = queryParams.toString();
     const url = queryString ? `/tasks?${queryString}` : '/tasks';
     
-    const response = await api.get(url);
+    const response = await api.get(url, taskService._getAuthConfig());
     return response.data;
   },
 
   // Get single task by ID
   getTaskById: async (taskId) => {
-    const response = await api.get(`/tasks/${taskId}`);
+    const response = await api.get(`/tasks/${taskId}`, taskService._getAuthConfig());
     return response.data;
   },
 
   // Create new task
   createTask: async (taskData) => {
-    const response = await api.post('/tasks', taskData);
+    console.log('🔨 Creating task...'); // DEBUG
+    const config = taskService._getAuthConfig();
+    console.log('🔑 Auth config:', config); // DEBUG
+    
+    const response = await api.post('/tasks', taskData, config);
     return response.data;
   },
 
   // Update existing task
   updateTask: async (taskId, taskData) => {
-    const response = await api.put(`/tasks/${taskId}`, taskData);
+    const response = await api.put(`/tasks/${taskId}`, taskData, taskService._getAuthConfig());
     return response.data;
   },
 
   // Delete task
   deleteTask: async (taskId) => {
-    const response = await api.delete(`/tasks/${taskId}`);
+    const response = await api.delete(`/tasks/${taskId}`, taskService._getAuthConfig());
     return response.data;
   }
 };
