@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-console.log('🚀 API.JS LOADED - VERSION 2.0'); 
+console.log('🚀 API.JS LOADED - VERSION 3.0 (ROBUST)'); 
 
 // Base URL for your backend API
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -14,34 +14,42 @@ const api = axios.create({
   },
 });
 
-// REQUEST interceptor to add token from localStorage
-api.interceptors.request.use(
-  (config) => {
+// Helper function to get token from localStorage
+const getToken = () => {
+  try {
     const userStr = localStorage.getItem('user');
-    if (userStr) {
-      try {
-        const userData = JSON.parse(userStr);
-        // Add token to Authorization header if it exists
-        if (userData.accessToken) {
-          config.headers.Authorization = `Bearer ${userData.accessToken}`;
-        }
-      } catch (error) {
-        console.error('Error parsing user data:', error);
-      }
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
+    if (!userStr) return null;
+    
+    const userData = JSON.parse(userStr);
+    return userData?.accessToken || null;
+  } catch (error) {
+    console.error('❌ Error getting token:', error);
+    return null;
   }
-);
+};
+
+// Helper function to create config with auth header
+const getAuthConfig = () => {
+  const token = getToken();
+  if (!token) {
+    console.warn('⚠️ No token found in localStorage');
+    return {};
+  }
+  
+  console.log('✅ Token found, adding to request');
+  return {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  };
+};
 
 // RESPONSE interceptor to handle errors
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Unauthorized - redirect to login
+      console.error('❌ 401 Unauthorized - Clearing storage and redirecting');
       localStorage.removeItem('user');
       window.location.href = '/login';
     }
@@ -67,15 +75,20 @@ export const authService = {
       ...(isEmail ? { email: identifier } : { username: identifier })
     };
     
+    console.log('🔐 Attempting login...');
     const response = await api.post('/users/login', credentials);
     
     // Store user info AND tokens in localStorage
     if (response.data.data) {
-      localStorage.setItem('user', JSON.stringify({
+      const userDataToStore = {
         ...response.data.data.user,
         accessToken: response.data.data.accessToken,
         refreshToken: response.data.data.refreshToken
-      }));
+      };
+      
+      localStorage.setItem('user', JSON.stringify(userDataToStore));
+      console.log('✅ Login successful, tokens saved');
+      console.log('🔑 Token preview:', response.data.data.accessToken?.substring(0, 20) + '...');
     }
     
     return response.data;
@@ -84,7 +97,8 @@ export const authService = {
   // Logout user
   logout: async () => {
     try {
-      await api.post('/users/logout');
+      const config = getAuthConfig();
+      await api.post('/users/logout', {}, config);
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
@@ -110,35 +124,13 @@ export const authService = {
 
   // Check if user is logged in
   isAuthenticated: () => {
-    return !!localStorage.getItem('user');
+    return !!getToken();
   }
 };
 
 // ============ TASK SERVICES ============
 
-// ============ TASK SERVICES ============
-
 export const taskService = {
-  // Helper function to get auth config
-  _getAuthConfig: () => {
-    const userStr = localStorage.getItem('user');
-    if (userStr) {
-      try {
-        const userData = JSON.parse(userStr);
-        if (userData.accessToken) {
-          return {
-            headers: {
-              'Authorization': `Bearer ${userData.accessToken}`
-            }
-          };
-        }
-      } catch (error) {
-        console.error('Error parsing user data:', error);
-      }
-    }
-    return {};
-  },
-
   // Get all tasks for current user
   getAllTasks: async (filters = {}) => {
     const queryParams = new URLSearchParams();
@@ -156,35 +148,50 @@ export const taskService = {
     const queryString = queryParams.toString();
     const url = queryString ? `/tasks?${queryString}` : '/tasks';
     
-    const response = await api.get(url, taskService._getAuthConfig());
+    const config = getAuthConfig();
+    const response = await api.get(url, config);
     return response.data;
   },
 
   // Get single task by ID
   getTaskById: async (taskId) => {
-    const response = await api.get(`/tasks/${taskId}`, taskService._getAuthConfig());
+    const config = getAuthConfig();
+    const response = await api.get(`/tasks/${taskId}`, config);
     return response.data;
   },
 
   // Create new task
   createTask: async (taskData) => {
-    console.log('🔨 Creating task...'); // DEBUG
-    const config = taskService._getAuthConfig();
-    console.log('🔑 Auth config:', config); // DEBUG
+    console.log('🔨 Creating task with data:', taskData);
+    
+    const config = getAuthConfig();
+    console.log('📦 Request config:', config);
     
     const response = await api.post('/tasks', taskData, config);
+    
+    console.log('✅ Task created successfully');
     return response.data;
   },
 
   // Update existing task
   updateTask: async (taskId, taskData) => {
-    const response = await api.put(`/tasks/${taskId}`, taskData, taskService._getAuthConfig());
+    console.log('✏️ Updating task:', taskId);
+    
+    const config = getAuthConfig();
+    const response = await api.put(`/tasks/${taskId}`, taskData, config);
+    
+    console.log('✅ Task updated successfully');
     return response.data;
   },
 
   // Delete task
   deleteTask: async (taskId) => {
-    const response = await api.delete(`/tasks/${taskId}`, taskService._getAuthConfig());
+    console.log('🗑️ Deleting task:', taskId);
+    
+    const config = getAuthConfig();
+    const response = await api.delete(`/tasks/${taskId}`, config);
+    
+    console.log('✅ Task deleted successfully');
     return response.data;
   }
 };
