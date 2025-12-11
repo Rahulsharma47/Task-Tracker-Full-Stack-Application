@@ -1,5 +1,7 @@
 import axios from 'axios';
 
+console.log('🚀 API.JS LOADED - VERSION 2.0'); 
+
 // Base URL for your backend API
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
