@@ -98,8 +98,8 @@ const logoutUser = asyncHandler(async (req, res)=>{
     await User.findByIdAndUpdate(
         req.user._id,
         { 
-            $set : {
-                refreshToken: undefined
+            $unset : {
+                refreshToken: 1
             }},
         {
             new: true
@@ -109,6 +109,8 @@ const logoutUser = asyncHandler(async (req, res)=>{
     const options = {
         httpOnly: true,
         secure: true,
+        sameSite: 'none',  // ADD THIS
+        maxAge: 0  // ADD THIS to expire immediately
     }
 
     return res
