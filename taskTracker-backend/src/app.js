@@ -8,6 +8,8 @@ import taskRoutes from "./routes/task.routes.js";
 const app = express();
 
 app.use(cookieParser());
+
+// CORS Configuration - MUST be before routes
 app.use(cors({
     origin: function(origin, callback) {
         // Allow requests with no origin (mobile apps, Postman, etc.)
@@ -23,17 +25,18 @@ app.use(cors({
         }
     },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     exposedHeaders: ['Set-Cookie'],
-    maxAge: 86400
+    maxAge: 86400 // Cache preflight for 24 hours
 }));
 
+// Handle preflight requests explicitly
 app.options('*', cors());
+
 app.use(express.json({ limit: '16kb' }));
 app.use(express.urlencoded({ extended: true, limit: '16kb' }));
 app.use(express.static('public'));
-app.use(cookieParser());
 
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/tasks", taskRoutes);
