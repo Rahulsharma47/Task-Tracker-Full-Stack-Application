@@ -6,13 +6,35 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 // Create axios instance with default config
 const api = axios.create({
   baseURL: API_BASE_URL,
-  withCredentials: true, // CRITICAL: This sends cookies with every request
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Response interceptor to handle errors
+// REQUEST interceptor to add token from localStorage
+api.interceptors.request.use(
+  (config) => {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      try {
+        const userData = JSON.parse(userStr);
+        // Add token to Authorization header if it exists
+        if (userData.accessToken) {
+          config.headers.Authorization = `Bearer ${userData.accessToken}`;
+        }
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+      }
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// RESPONSE interceptor to handle errors
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -31,15 +53,11 @@ export const authService = {
   // Register new user
   register: async (userData) => {
     const response = await api.post('/users/register', userData);
-    
-    // Don't store user info yet - let them login first
-    // Just return the response
     return response.data;
   },
 
   // Login user - accepts email OR username
   login: async (identifier, password) => {
-    // Determine if identifier is email or username
     const isEmail = identifier.includes('@');
     
     const credentials = {
@@ -49,33 +67,25 @@ export const authService = {
     
     const response = await api.post('/users/login', credentials);
     
-    // Tokens are automatically stored in httpOnly cookies by the browser
-    // We only store user info in localStorage for UI purposes
-    if (response.data.data?.user) {
-      localStorage.setItem('user', JSON.stringify(response.data.data.user));
+    // Store user info AND tokens in localStorage
+    if (response.data.data) {
+      localStorage.setItem('user', JSON.stringify({
+        ...response.data.data.user,
+        accessToken: response.data.data.accessToken,
+        refreshToken: response.data.data.refreshToken
+      }));
     }
     
-    return response.data;
-  },
-
-  // Register user
-  register: async (userData) => {
-    const response = await api.post('/users/register', userData);
-    
-    // Don't store anything on registration - user needs to login to get token
-    // Just return the response
     return response.data;
   },
 
   // Logout user
   logout: async () => {
     try {
-      // Call backend logout endpoint to clear cookies
       await api.post('/users/logout');
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      // Always clear local storage
       localStorage.removeItem('user');
     }
   },
@@ -83,7 +93,17 @@ export const authService = {
   // Get current user from localStorage
   getCurrentUser: () => {
     const userStr = localStorage.getItem('user');
-    return userStr ? JSON.parse(userStr) : null;
+    if (userStr) {
+      try {
+        const userData = JSON.parse(userStr);
+        // Return user data without the tokens (for UI purposes)
+        const { accessToken, refreshToken, ...user } = userData;
+        return user;
+      } catch {
+        return null;
+      }
+    }
+    return null;
   },
 
   // Check if user is logged in
